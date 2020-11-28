@@ -57,20 +57,7 @@ Contributors:
 static void bridge__backoff_step(struct mosquitto *context);
 static void bridge__backoff_reset(struct mosquitto *context);
 
-void bridge__start_all(void)
-{
-	int i;
-
-	for(i=0; i<db.config->bridge_count; i++){
-		if(bridge__new(&(db.config->bridges[i])) > 0){
-			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect to bridge %s.",
-					db.config->bridges[i].name);
-		}
-	}
-}
-
-
-int bridge__new(struct mosquitto__bridge *bridge)
+static struct mosquitto *bridge__new(struct mosquitto__bridge *bridge)
 {
 	struct mosquitto *new_context = NULL;
 	struct mosquitto **bridges;
@@ -89,7 +76,7 @@ int bridge__new(struct mosquitto__bridge *bridge)
 		new_context = context__init(INVALID_SOCKET);
 		if(!new_context){
 			mosquitto__free(local_id);
-			return MOSQ_ERR_NOMEM;
+			return NULL;
 		}
 		new_context->id = local_id;
 		context__add_to_by_id(new_context);
@@ -97,25 +84,25 @@ int bridge__new(struct mosquitto__bridge *bridge)
 	new_context->bridge = bridge;
 	new_context->is_bridge = true;
 
-	new_context->username = new_context->bridge->remote_username;
-	new_context->password = new_context->bridge->remote_password;
+	new_context->username = bridge->remote_username;
+	new_context->password = bridge->remote_password;
 
 #ifdef WITH_TLS
-	new_context->tls_cafile = new_context->bridge->tls_cafile;
-	new_context->tls_capath = new_context->bridge->tls_capath;
-	new_context->tls_certfile = new_context->bridge->tls_certfile;
-	new_context->tls_keyfile = new_context->bridge->tls_keyfile;
+	new_context->tls_cafile = bridge->tls_cafile;
+	new_context->tls_capath = bridge->tls_capath;
+	new_context->tls_certfile = bridge->tls_certfile;
+	new_context->tls_keyfile = bridge->tls_keyfile;
 	new_context->tls_cert_reqs = SSL_VERIFY_PEER;
-	new_context->tls_ocsp_required = new_context->bridge->tls_ocsp_required;
-	new_context->tls_version = new_context->bridge->tls_version;
-	new_context->tls_insecure = new_context->bridge->tls_insecure;
-	new_context->tls_alpn = new_context->bridge->tls_alpn;
+	new_context->tls_ocsp_required = bridge->tls_ocsp_required;
+	new_context->tls_version = bridge->tls_version;
+	new_context->tls_insecure = bridge->tls_insecure;
+	new_context->tls_alpn = bridge->tls_alpn;
 	new_context->tls_engine = db.config->default_listener.tls_engine;
 	new_context->tls_keyform = db.config->default_listener.tls_keyform;
 	new_context->ssl_ctx_defaults = true;
 #ifdef FINAL_WITH_TLS_PSK
-	new_context->tls_psk_identity = new_context->bridge->tls_psk_identity;
-	new_context->tls_psk = new_context->bridge->tls_psk;
+	new_context->tls_psk_identity = bridge->tls_psk_identity;
+	new_context->tls_psk = bridge->tls_psk;
 #endif
 #endif
 
@@ -133,15 +120,43 @@ int bridge__new(struct mosquitto__bridge *bridge)
 		db.bridge_count++;
 		db.bridges[db.bridge_count-1] = new_context;
 	}else{
-		return MOSQ_ERR_NOMEM;
+		return NULL;
 	}
 
+	return new_context;
+}
+
+static void bridge__destroy(struct mosquitto *context)
+{
+	send__disconnect(context, MQTT_RC_SUCCESS, NULL);
+	context__cleanup(context, true);
+}
+
+void bridge__start_all(void)
+{
+	int i;
+
+	for(i=0; i<db.config->bridge_count; i++){
+		struct mosquitto *context;
+		int ret;
+
+		context = bridge__new(db.config->bridges[i]);
+		assert(context);
+
 #if defined(__GLIBC__) && defined(WITH_ADNS)
-	new_context->bridge->restart_t = 1; /* force quick restart of bridge */
-	return bridge__connect_step1(new_context);
+		context->bridge->restart_t = 1; /* force quick restart of bridge */
+		ret = bridge__connect_step1(context);
 #else
-	return bridge__connect(new_context);
+		ret = bridge__connect(context);
 #endif
+
+		if (ret){
+			log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Unable to connect bridge %s.",
+					context->bridge->name);
+		}
+
+		db.config->bridges[i] = NULL;
+	}
 }
 
 #if defined(__GLIBC__) && defined(WITH_ADNS)
@@ -590,15 +605,69 @@ int bridge__register_local_connections(void)
 }
 
 
+void bridge__reload(void)
+{
+	int i;
+	int j;
+
+	// destroy old bridges that dissappeared
+	for(i=0;i<db.bridge_count;i++){
+		for(j=0;j<db.config->bridge_count;j++){
+			if(!strcmp(db.bridges[i]->bridge->name, db.config->bridges[j]->name)) break;
+		}
+
+		if(j==db.config->bridge_count){
+			bridge__destroy(db.bridges[i]);
+		}
+	}
+
+	for(i=0;i<db.config->bridge_count;i++){
+		for(j=0;j<db.bridge_count; j++){
+			if(!strcmp(db.config->bridges[i]->name, db.bridges[j]->bridge->name)) break;
+		}
+
+		if(j==db.bridge_count){
+			// a new bridge was found, create it
+			bridge__new(db.config->bridges[i]);
+			db.config->bridges[i] = NULL;
+			continue;
+		}
+
+		if(db.config->bridges[i]->reload_type == brt_immediate){
+			// in this case, an existing bridge should match
+			for(j=0;j<db.bridge_count;j++){
+				if(!strcmp(db.config->bridges[i]->name, db.bridges[j]->bridge->name)) break;
+			}
+
+			assert(j<db.bridge_count);
+			db.bridges[j]->will_delay_interval = 0;
+			bridge__destroy(db.bridges[j]);
+			bridge__new(db.config->bridges[i]);
+			db.config->bridges[i] = NULL;
+		}
+	}
+}
+
+
 void bridge__cleanup(struct mosquitto *context)
 {
 	int i;
 
+	assert(db.bridge_count > 0);
+
 	for(i=0; i<db.bridge_count; i++){
 		if(db.bridges[i] == context){
-			db.bridges[i] = NULL;
+			db.bridges[i] = db.bridges[db.bridge_count-1];
+			break;
 		}
 	}
+
+	db.bridge_count--;
+	db.bridges = mosquitto__realloc(db.bridges, (unsigned) db.bridge_count * sizeof(db.bridges[0]));
+
+	mosquitto__free(context->bridge->name);
+	context->bridge->name = NULL;
+
 	mosquitto__free(context->bridge->local_clientid);
 	context->bridge->local_clientid = NULL;
 
@@ -628,6 +697,27 @@ void bridge__cleanup(struct mosquitto *context)
 		context->ssl_ctx = NULL;
 	}
 #endif
+
+	for(i=0; i<context->bridge->address_count; i++){
+		mosquitto__free(context->bridge->addresses[i].address);
+	}
+
+	mosquitto__free(context->bridge->addresses);
+	context->bridge->addresses = NULL;
+
+	for(i=0; i<context->bridge->topic_count; i++){
+		mosquitto__free(context->bridge->topics[i].topic);
+		mosquitto__free(context->bridge->topics[i].local_prefix);
+		mosquitto__free(context->bridge->topics[i].remote_prefix);
+		mosquitto__free(context->bridge->topics[i].local_topic);
+		mosquitto__free(context->bridge->topics[i].remote_topic);
+	}
+
+	mosquitto__free(context->bridge->topics);
+	context->bridge->topics = NULL;
+
+	config__bridge_cleanup(context->bridge);
+	context->bridge = NULL;
 }
 
 
@@ -693,7 +783,6 @@ static void bridge__backoff_reset(struct mosquitto *context)
 	}
 }
 
-
 static void bridge_check_pending(struct mosquitto *context)
 {
 	int err;
@@ -718,6 +807,22 @@ static void bridge_check_pending(struct mosquitto *context)
 			return;
 		}
 	}
+}
+
+static bool reload_if_needed(struct mosquitto *context)
+{
+	int i;
+
+	for(i=0;i<db.config->bridge_count;i++){
+		if(db.config->bridges[i] && !strcmp(context->bridge->name, db.config->bridges[i]->name)){
+			bridge__destroy(context);
+			bridge__new(db.config->bridges[i]);
+			db.config->bridges[i] = NULL;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void bridge_check(void)
@@ -788,6 +893,8 @@ void bridge_check(void)
 
 
 		if(context->sock == INVALID_SOCKET){
+			if(reload_if_needed(context)) continue;
+
 			/* Want to try to restart the bridge connection */
 			if(!context->bridge->restart_t){
 				context->bridge->restart_t = db.now_s+context->bridge->restart_timeout;

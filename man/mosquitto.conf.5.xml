@@ -1568,7 +1568,7 @@ openssl dhparam -out dhparam.pem 2048</programlisting>
 		<title>Configuring Bridges</title>
 		<para>Multiple bridges (connections to other brokers) can be configured
 		using the following variables.</para>
-		<para>Bridges cannot currently be reloaded on reload signal.</para>
+		<para>Reloaded on reload signal.</para>
 		<variablelist>
 			<varlistentry>
 				<term><option>address</option> <replaceable>address[:port]</replaceable> <replaceable>[address[:port]]</replaceable></term>
@@ -2128,6 +2128,24 @@ topic clients/total in 0 test/mosquitto/org/ $SYS/broker/
 							<replaceable>tlsv1.2</replaceable>. The remote
 							broker must support the same version of TLS for the
 							connection to succeed.</para>
+					</listitem>
+				</varlistentry>
+				<varlistentry>
+					<term><option>reload_type</option> [ lazy | immediate ]</term>
+					<listitem>
+						<para>Configuration changes are applied during a bridge
+							reconnection. This option helps deciding when that
+							reconnection happens. It can be one of two types:
+							<replaceable>lazy</replaceable> and <replaceable>immediate</replaceable>.
+						</para>
+
+						<para><replaceable>lazy</replaceable> is the default,
+							and means that any connected bridge will remain in
+							that state. The configuration changes will be taken
+							during a later, natural reconnection.</para>
+
+						<para><replaceable>immediate</replaceable> forces a
+							reconnection in order to take the new values.</para>
 					</listitem>
 				</varlistentry>
 			</variablelist>

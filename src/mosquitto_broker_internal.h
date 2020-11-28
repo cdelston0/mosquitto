@@ -300,7 +300,7 @@ struct mosquitto__config {
 	uint16_t websockets_headers_size;
 #endif
 #ifdef WITH_BRIDGE
-	struct mosquitto__bridge *bridges;
+	struct mosquitto__bridge **bridges;
 	int bridge_count;
 #endif
 	struct mosquitto__security_options security_options;
@@ -490,6 +490,11 @@ enum mosquitto_bridge_start_type{
 	bst_once = 3
 };
 
+enum mosquitto_bridge_reload_type{
+	brt_lazy = 0,
+	brt_immediate = 1,
+};
+
 struct mosquitto__bridge_topic{
 	char *topic;
 	char *local_prefix;
@@ -544,6 +549,7 @@ struct mosquitto__bridge{
 	bool attempt_unsubscribe;
 	bool initial_notification_done;
 	bool outgoing_retain;
+	enum mosquitto_bridge_reload_type reload_type;
 #ifdef WITH_TLS
 	bool tls_insecure;
 	bool tls_ocsp_required;
@@ -586,6 +592,9 @@ int mosquitto_main_loop(struct mosquitto__listener_sock *listensock, int listens
  * ============================================================ */
 /* Initialise config struct to default values. */
 void config__init(struct mosquitto__config *config);
+#ifdef WITH_BRIDGE
+void config__bridge_cleanup(struct mosquitto__bridge *bridge);
+#endif
 /* Parse command line options into config. */
 int config__parse_args(struct mosquitto__config *config, int argc, char *argv[]);
 /* Read configuration data from config->config_file into config.
@@ -722,7 +731,7 @@ void log__internal(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
  * ============================================================ */
 #ifdef WITH_BRIDGE
 void bridge__start_all(void);
-int bridge__new(struct mosquitto__bridge *bridge);
+void bridge__reload(void);
 void bridge__cleanup(struct mosquitto *context);
 int bridge__connect(struct mosquitto *context);
 int bridge__connect_step1(struct mosquitto *context);
