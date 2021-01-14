@@ -2111,6 +2111,24 @@ topic clients/total in 0 test/mosquitto/org/ $SYS/broker/
 					</listitem>
 				</varlistentry>
 				<varlistentry>
+					<term><option>bridge_reload_type</option> [ lazy | immediate ]</term>
+					<listitem>
+						<para>If you change bridge options in the configuration file,
+						those configuration changes are applied during a bridge
+						reconnection. The <option>bridge_reload_type<option> option
+						determines when that reconnection happens, and can be set to either
+						<replaceable>lazy</replaceable> or <replaceable>immediate</replaceable>.</para>
+
+						<para><replaceable>lazy</replaceable> is the default, and means
+						that any connected bridge will remain in its current state until
+						a natural reconnection happens, at which point the new configuration
+						will be used.</para>
+
+						<para><replaceable>immediate</replaceable> forces a reconnection and so
+						uses the new configuration straight away.</para>
+					</listitem>
+				</varlistentry>
+				<varlistentry>
 					<term><option>bridge_require_ocsp</option> [ true | false ]</term>
 					<listitem>
 						<para>When set to true, the bridge requires OCSP on the TLS
@@ -2128,24 +2146,6 @@ topic clients/total in 0 test/mosquitto/org/ $SYS/broker/
 							<replaceable>tlsv1.2</replaceable>. The remote
 							broker must support the same version of TLS for the
 							connection to succeed.</para>
-					</listitem>
-				</varlistentry>
-				<varlistentry>
-					<term><option>reload_type</option> [ lazy | immediate ]</term>
-					<listitem>
-						<para>Configuration changes are applied during a bridge
-							reconnection. This option helps deciding when that
-							reconnection happens. It can be one of two types:
-							<replaceable>lazy</replaceable> and <replaceable>immediate</replaceable>.
-						</para>
-
-						<para><replaceable>lazy</replaceable> is the default,
-							and means that any connected bridge will remain in
-							that state. The configuration changes will be taken
-							during a later, natural reconnection.</para>
-
-						<para><replaceable>immediate</replaceable> forces a
-							reconnection in order to take the new values.</para>
 					</listitem>
 				</varlistentry>
 			</variablelist>
