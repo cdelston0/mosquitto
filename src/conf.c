@@ -323,7 +323,7 @@ void config__cleanup(struct mosquitto__config *config)
 			mosquitto__free(config->bridges[i].local_username);
 			mosquitto__free(config->bridges[i].local_password);
 			if(config->bridges[i].topics){
-				LL_FOREACH_SAFE(config->bridges[i].topics, cur_topic, topic_tmp) {
+				LL_FOREACH_SAFE(config->bridges[i].topics, cur_topic, topic_tmp){
 					mosquitto__free(cur_topic->topic);
 					mosquitto__free(cur_topic->local_prefix);
 					mosquitto__free(cur_topic->remote_prefix);

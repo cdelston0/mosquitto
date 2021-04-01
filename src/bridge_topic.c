@@ -130,7 +130,7 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 
 	bridge->topic_count++;
 	cur_topic = mosquitto__malloc(sizeof(struct mosquitto__bridge_topic));
-	if (cur_topic == NULL) {
+	if(cur_topic == NULL){
 		log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
 		return MOSQ_ERR_NOMEM;
 	}
@@ -194,7 +194,7 @@ int bridge__remap_topic_in(struct mosquitto *context, char **topic)
 	bool match;
 
 	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
-		LL_FOREACH(context->bridge->topics, cur_topic) {
+		LL_FOREACH(context->bridge->topics, cur_topic){
 			if((cur_topic->direction == bd_both || cur_topic->direction == bd_in)
 					&& (cur_topic->remote_prefix || cur_topic->local_prefix)){
 

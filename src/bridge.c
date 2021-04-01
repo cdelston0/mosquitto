@@ -180,7 +180,7 @@ int bridge__connect_step1(struct mosquitto *context)
 	 */
 	sub__clean_session(context);
 
-	LL_FOREACH(context->bridge->topics, cur_topic) {
+	LL_FOREACH(context->bridge->topics, cur_topic){
 		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
 			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, cur_topic->local_topic);
 			if(cur_topic->qos > context->max_qos){
@@ -366,7 +366,7 @@ int bridge__connect(struct mosquitto *context)
 	 */
 	sub__clean_session(context);
 
-	LL_FOREACH(context->bridge->topics, cur_topic) {
+	LL_FOREACH(context->bridge->topics, cur_topic){
 		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
 			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, cur_topic->local_topic);
 			if(cur_topic->qos > context->max_qos){
@@ -523,7 +523,7 @@ int bridge__on_connect(struct mosquitto *context)
 		}
 	}
 
-	LL_FOREACH(context->bridge->topics, cur_topic) {
+	LL_FOREACH(context->bridge->topics, cur_topic){
 		if(cur_topic->direction == bd_in || cur_topic->direction == bd_both){
 			if(cur_topic->qos > context->max_qos){
 				sub_opts = context->max_qos;
@@ -550,7 +550,7 @@ int bridge__on_connect(struct mosquitto *context)
 			}
 		}
 	}
-	LL_FOREACH(context->bridge->topics, cur_topic) {
+	LL_FOREACH(context->bridge->topics, cur_topic){
 		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
 			if(cur_topic->qos > context->max_qos){
 				qos = context->max_qos;
