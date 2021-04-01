@@ -49,6 +49,8 @@ Contributors:
 #include "util_mosq.h"
 #include "mqtt_protocol.h"
 
+#include "utlist.h"
+
 struct config_recurse {
 	unsigned int log_dest;
 	int log_dest_set;
@@ -250,6 +252,7 @@ void config__cleanup(struct mosquitto__config *config)
 {
 	int i;
 #ifdef WITH_BRIDGE
+	struct mosquitto__bridge_topic *cur_topic, *topic_tmp;
 	int j;
 #endif
 
@@ -320,14 +323,15 @@ void config__cleanup(struct mosquitto__config *config)
 			mosquitto__free(config->bridges[i].local_username);
 			mosquitto__free(config->bridges[i].local_password);
 			if(config->bridges[i].topics){
-				for(j=0; j<config->bridges[i].topic_count; j++){
-					mosquitto__free(config->bridges[i].topics[j].topic);
-					mosquitto__free(config->bridges[i].topics[j].local_prefix);
-					mosquitto__free(config->bridges[i].topics[j].remote_prefix);
-					mosquitto__free(config->bridges[i].topics[j].local_topic);
-					mosquitto__free(config->bridges[i].topics[j].remote_topic);
+				LL_FOREACH_SAFE(config->bridges[i].topics, cur_topic, topic_tmp) {
+					mosquitto__free(cur_topic->topic);
+					mosquitto__free(cur_topic->local_prefix);
+					mosquitto__free(cur_topic->remote_prefix);
+					mosquitto__free(cur_topic->local_topic);
+					mosquitto__free(cur_topic->remote_topic);
+					LL_DELETE(config->bridges[i].topics, cur_topic);
+					mosquitto__free(cur_topic);
 				}
-				mosquitto__free(config->bridges[i].topics);
 			}
 			mosquitto__free(config->bridges[i].notification_topic);
 #ifdef WITH_TLS

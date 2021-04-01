@@ -52,6 +52,8 @@ Contributors:
 #include "util_mosq.h"
 #include "will_mosq.h"
 
+#include "utlist.h"
+
 #ifdef WITH_BRIDGE
 
 static void bridge__backoff_step(struct mosquitto *context);
@@ -151,6 +153,7 @@ int bridge__connect_step1(struct mosquitto *context)
 	char *notification_topic;
 	size_t notification_topic_len;
 	uint8_t notification_payload;
+	struct mosquitto__bridge_topic *cur_topic;
 	int i;
 	uint8_t qos;
 
@@ -177,16 +180,16 @@ int bridge__connect_step1(struct mosquitto *context)
 	 */
 	sub__clean_session(context);
 
-	for(i=0; i<context->bridge->topic_count; i++){
-		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
-			if(context->bridge->topics[i].qos > context->max_qos){
+	LL_FOREACH(context->bridge->topics, cur_topic) {
+		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
+			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, cur_topic->local_topic);
+			if(cur_topic->qos > context->max_qos){
 				qos = context->max_qos;
 			}else{
-				qos = context->bridge->topics[i].qos;
+				qos = cur_topic->qos;
 			}
 			if(sub__add(context,
-						context->bridge->topics[i].local_topic,
+						cur_topic->local_topic,
 						qos,
 						0,
 						MQTT_SUB_OPT_NO_LOCAL | MQTT_SUB_OPT_RETAIN_AS_PUBLISHED,
@@ -194,7 +197,7 @@ int bridge__connect_step1(struct mosquitto *context)
 				return 1;
 			}
 			retain__queue(context,
-					context->bridge->topics[i].local_topic,
+					cur_topic->local_topic,
 					qos, 0);
 		}
 	}
@@ -334,10 +337,10 @@ int bridge__connect_step3(struct mosquitto *context)
 int bridge__connect(struct mosquitto *context)
 {
 	int rc, rc2;
-	int i;
 	char *notification_topic = NULL;
 	size_t notification_topic_len;
 	uint8_t notification_payload;
+	struct mosquitto__bridge_topic *cur_topic;
 	uint8_t qos;
 
 	if(!context || !context->bridge) return MOSQ_ERR_INVAL;
@@ -363,16 +366,16 @@ int bridge__connect(struct mosquitto *context)
 	 */
 	sub__clean_session(context);
 
-	for(i=0; i<context->bridge->topic_count; i++){
-		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, context->bridge->topics[i].local_topic);
-			if(context->bridge->topics[i].qos > context->max_qos){
+	LL_FOREACH(context->bridge->topics, cur_topic) {
+		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
+			log__printf(NULL, MOSQ_LOG_DEBUG, "Bridge %s doing local SUBSCRIBE on topic %s", context->id, cur_topic->local_topic);
+			if(cur_topic->qos > context->max_qos){
 				qos = context->max_qos;
 			}else{
-				qos = context->bridge->topics[i].qos;
+				qos = cur_topic->qos;
 			}
 			if(sub__add(context,
-						context->bridge->topics[i].local_topic,
+						cur_topic->local_topic,
 						qos,
 						0,
 						MQTT_SUB_OPT_NO_LOCAL | MQTT_SUB_OPT_RETAIN_AS_PUBLISHED,
@@ -473,10 +476,10 @@ int bridge__connect(struct mosquitto *context)
 
 int bridge__on_connect(struct mosquitto *context)
 {
-	int i;
 	char *notification_topic;
 	size_t notification_topic_len;
 	char notification_payload;
+	struct mosquitto__bridge_topic *cur_topic;
 	int sub_opts;
 	bool retain = true;
 	uint8_t qos;
@@ -519,12 +522,13 @@ int bridge__on_connect(struct mosquitto *context)
 			mosquitto__free(notification_topic);
 		}
 	}
-	for(i=0; i<context->bridge->topic_count; i++){
-		if(context->bridge->topics[i].direction == bd_in || context->bridge->topics[i].direction == bd_both){
-			if(context->bridge->topics[i].qos > context->max_qos){
+
+	LL_FOREACH(context->bridge->topics, cur_topic) {
+		if(cur_topic->direction == bd_in || cur_topic->direction == bd_both){
+			if(cur_topic->qos > context->max_qos){
 				sub_opts = context->max_qos;
 			}else{
-				sub_opts = context->bridge->topics[i].qos;
+				sub_opts = cur_topic->qos;
 			}
 			if(context->bridge->protocol_version == mosq_p_mqtt5){
 				sub_opts = sub_opts
@@ -532,12 +536,12 @@ int bridge__on_connect(struct mosquitto *context)
 					| MQTT_SUB_OPT_RETAIN_AS_PUBLISHED
 					| MQTT_SUB_OPT_SEND_RETAIN_ALWAYS;
 			}
-			if(send__subscribe(context, NULL, 1, &context->bridge->topics[i].remote_topic, sub_opts, NULL)){
+			if(send__subscribe(context, NULL, 1, &cur_topic->remote_topic, sub_opts, NULL)){
 				return 1;
 			}
 		}else{
 			if(context->bridge->attempt_unsubscribe){
-				if(send__unsubscribe(context, NULL, 1, &context->bridge->topics[i].remote_topic, NULL)){
+				if(send__unsubscribe(context, NULL, 1, &cur_topic->remote_topic, NULL)){
 					/* direction = inwards only. This means we should not be subscribed
 					* to the topic. It is possible that we used to be subscribed to
 					* this topic so unsubscribe. */
@@ -546,15 +550,15 @@ int bridge__on_connect(struct mosquitto *context)
 			}
 		}
 	}
-	for(i=0; i<context->bridge->topic_count; i++){
-		if(context->bridge->topics[i].direction == bd_out || context->bridge->topics[i].direction == bd_both){
-			if(context->bridge->topics[i].qos > context->max_qos){
+	LL_FOREACH(context->bridge->topics, cur_topic) {
+		if(cur_topic->direction == bd_out || cur_topic->direction == bd_both){
+			if(cur_topic->qos > context->max_qos){
 				qos = context->max_qos;
 			}else{
-				qos = context->bridge->topics[i].qos;
+				qos = cur_topic->qos;
 			}
 			retain__queue(context,
-					context->bridge->topics[i].local_topic,
+					cur_topic->local_topic,
 					qos, 0);
 		}
 	}

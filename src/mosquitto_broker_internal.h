@@ -496,6 +496,7 @@ struct mosquitto__bridge_topic{
 	char *remote_topic; /* topic prefixed with remote_prefix */
 	enum mosquitto__bridge_direction direction;
 	uint8_t qos;
+	struct mosquitto__bridge_topic *next;
 };
 
 struct bridge_address{

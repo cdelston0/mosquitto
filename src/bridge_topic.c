@@ -22,6 +22,8 @@ Contributors:
 #include "mosquitto_broker_internal.h"
 #include "memory_mosq.h"
 
+#include "utlist.h"
+
 #ifdef WITH_BRIDGE
 static int bridge__create_remap_topic(const char *prefix, const char *topic, char **remap_topic)
 {
@@ -100,9 +102,7 @@ static int bridge__create_prefix(char **full_prefix, const char *topic, const ch
 /* topic <topic> [[[out | in | both] qos-level] local-prefix remote-prefix] */
 int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix)
 {
-	struct mosquitto__bridge_topic *topics;
 	struct mosquitto__bridge_topic *cur_topic;
-
 
 	if(bridge == NULL) return MOSQ_ERR_INVAL;
 	if(direction != bd_out && direction != bd_in && direction != bd_both){
@@ -126,18 +126,18 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 		return MOSQ_ERR_INVAL;
 	}
 
+	/* FIXME: check for duplicates */
 
 	bridge->topic_count++;
-	topics = mosquitto__realloc(bridge->topics,
-				sizeof(struct mosquitto__bridge_topic)*(size_t)bridge->topic_count);
-
-	if(topics == NULL){
+	cur_topic = mosquitto__malloc(sizeof(struct mosquitto__bridge_topic));
+	if (cur_topic == NULL) {
 		log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
 		return MOSQ_ERR_NOMEM;
 	}
-	bridge->topics = topics;
+	cur_topic->next = NULL;
 
-	cur_topic = &bridge->topics[bridge->topic_count-1];
+	LL_APPEND(bridge->topics, cur_topic);
+
 	cur_topic->direction = direction;
 	cur_topic->qos = qos;
 	cur_topic->local_prefix = NULL;
@@ -189,14 +189,12 @@ int bridge__remap_topic_in(struct mosquitto *context, char **topic)
 {
 	struct mosquitto__bridge_topic *cur_topic;
 	char *topic_temp;
-	int i;
 	size_t len;
 	int rc;
 	bool match;
 
 	if(context->bridge && context->bridge->topics && context->bridge->topic_remapping){
-		for(i=0; i<context->bridge->topic_count; i++){
-			cur_topic = &context->bridge->topics[i];
+		LL_FOREACH(context->bridge->topics, cur_topic) {
 			if((cur_topic->direction == bd_both || cur_topic->direction == bd_in)
 					&& (cur_topic->remote_prefix || cur_topic->local_prefix)){
 
