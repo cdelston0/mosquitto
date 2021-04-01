@@ -99,6 +99,43 @@ static int bridge__create_prefix(char **full_prefix, const char *topic, const ch
 }
 
 
+struct mosquitto__bridge_topic *bridge__find_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix)
+{
+	struct mosquitto__bridge_topic *cur_topic = NULL;
+	bool found = false;
+
+	LL_FOREACH(bridge->topics, cur_topic){
+		if(cur_topic->direction != direction){
+			continue;
+		}
+		if(cur_topic->qos != qos){
+			continue;
+		}
+		if(cur_topic->topic != NULL && topic != NULL){
+			if(strcmp(cur_topic->topic, topic)){
+				continue;
+			}
+		}
+		if(cur_topic->local_prefix != NULL && local_prefix != NULL){
+			if(strcmp(cur_topic->local_prefix, local_prefix)){
+				continue;
+			}
+		}
+		if(cur_topic->remote_prefix != NULL && remote_prefix != NULL){
+			if(strcmp(cur_topic->remote_prefix, remote_prefix)){
+				continue;
+			}
+		}
+		found = true;
+		break;
+	}
+	if(!found)
+		cur_topic = NULL;
+
+	return cur_topic;
+}
+
+
 /* topic <topic> [[[out | in | both] qos-level] local-prefix remote-prefix] */
 int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix)
 {
@@ -126,7 +163,10 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 		return MOSQ_ERR_INVAL;
 	}
 
-	/* FIXME: check for duplicates */
+	if(bridge__find_topic(bridge, topic, direction, qos, local_prefix, remote_prefix) != NULL){
+		log__printf(NULL, MOSQ_LOG_INFO, "Duplicate bridge topic '%s', skipping", topic);
+		return MOSQ_ERR_SUCCESS;
+	}
 
 	bridge->topic_count++;
 	cur_topic = mosquitto__malloc(sizeof(struct mosquitto__bridge_topic));
