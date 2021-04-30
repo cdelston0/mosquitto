@@ -2095,7 +2095,7 @@ int config__read_file_core(struct mosquitto__config *config, bool reload, struct
 						}
 					}
 
-					if(bridge__add_topic(cur_bridge, topic, direction, qos, local_prefix, remote_prefix)){
+					if(bridge__add_topic(cur_bridge, topic, direction, qos, local_prefix, remote_prefix, false, NULL)){
 						return MOSQ_ERR_INVAL;
 					}
 #else

@@ -496,6 +496,8 @@ struct mosquitto__bridge_topic{
 	char *remote_topic; /* topic prefixed with remote_prefix */
 	enum mosquitto__bridge_direction direction;
 	uint8_t qos;
+	bool dynamic;
+	uint8_t count;
 	struct mosquitto__bridge_topic *next;
 };
 
@@ -728,7 +730,7 @@ int bridge__on_connect(struct mosquitto *context);
 void bridge__packet_cleanup(struct mosquitto *context);
 void bridge_check(void);
 int bridge__register_local_connections(void);
-int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix);
+int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix, bool dynamic, struct mosquitto__bridge_topic **topic_out);
 int bridge__remap_topic_in(struct mosquitto *context, char **topic);
 #endif
 

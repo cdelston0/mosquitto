@@ -27,7 +27,7 @@ Contributors:
 #include "packet_mosq.h"
 #include "property_mosq.h"
 
-
+#include "send_mosq.h"
 
 int handle__subscribe(struct mosquitto *context)
 {
@@ -46,6 +46,8 @@ int handle__subscribe(struct mosquitto *context)
 	char *sub_mount;
 	mosquitto_property *properties = NULL;
 	bool allowed;
+	struct mosquitto__bridge_topic *cur_topic = NULL;
+	struct mosquitto *ctxt, *ctxt_tmp = NULL;
 
 	if(!context) return MOSQ_ERR_INVAL;
 
@@ -199,6 +201,28 @@ int handle__subscribe(struct mosquitto *context)
 							|| (rc2 == MOSQ_ERR_SUCCESS && retain_handling == MQTT_SUB_OPT_SEND_RETAIN_NEW)){
 
 						if(retain__queue(context, sub, qos, subscription_identifier)) rc = 1;
+					}
+				}
+
+				if(true){
+					HASH_ITER(hh_sock, db.contexts_by_sock, ctxt, ctxt_tmp){
+						int _mid = 0;
+						if(ctxt->bridge){
+							rc2 = bridge__add_topic(ctxt->bridge, (const char *)sub, bd_out, qos, NULL, NULL, true, &cur_topic);
+							log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_topic rc2 %d, cur_topic %p", rc2, cur_topic);
+							if(rc2 == MOSQ_ERR_SUCCESS){
+								if(cur_topic->dynamic){
+									if(cur_topic->count == 1){
+										log__printf(NULL, MOSQ_LOG_INFO, "initiating dynamic route");
+										send__subscribe(ctxt, &_mid, 1, (char *const *const)&sub, qos, NULL);
+										log__printf(NULL, MOSQ_LOG_INFO, "_mid returned as %d", _mid);
+									}else{
+										log__printf(NULL, MOSQ_LOG_INFO, "incrementing dynamic route");
+										cur_topic->count++;
+									}
+								}
+							}
+						}
 					}
 				}
 

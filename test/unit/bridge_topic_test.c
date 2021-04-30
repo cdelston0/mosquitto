@@ -23,7 +23,7 @@ static void map_valid_helper(const char *topic, const char *local_prefix, const 
 
 	mosq.bridge = &bridge;
 
-	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix);
+	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix, false, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	map_topic = strdup(incoming);
@@ -47,7 +47,7 @@ static void map_invalid_helper(const char *topic, const char *local_prefix, cons
 
 	mosq.bridge = &bridge;
 
-	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix);
+	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix, false, NULL);
 	CU_ASSERT_NOT_EQUAL(rc, 0);
 }
 
