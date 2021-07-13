@@ -25,14 +25,17 @@ Broker:
   corresponding PUBACK/PUBREC.
 - MOSQ_EVT_TICK is now passed to plugins when `per_listener_settings` is true.
 - The dynamic security plugin now supports `%c` and `%u` patterns for
-  substituting client id and username respectively, in publishClientSend and
-  publishClientReceive ACLs.
+  substituting client id and username respectively, in all ACLs except for
+  subscribeLiteral and unsubscribeLiteral.
 - Add `mosquitto_topic_matches_sub_with_pattern()`, which can match against
   subscriptions with `%c` and `%u` patterns for client id / username
   substitution.
 - Add `mosquitto_sub_matches_acl()`, which can match one topic filter (a
   subscription) against another topic filter (an ACL).
 - Performance: reduce memory allocations when sending packets.
+- The `allow_duplicate_messages` now defaults to `true`.
+- Return protocol error if a client attemps to subscribe to a shared
+  subscription and also sets no-local.
 
 Client library:
 - Add MOSQ_OPT_DISABLE_SOCKETPAIR to allow the disabling of the socketpair
@@ -49,6 +52,9 @@ Client library:
   substitution.
 - Add `mosquitto_sub_matches_acl()`, which can match one topic filter (a
   subscription) against another topic filter (an ACL).
+- Add `mosquitto_sub_matches_acl_with_pattern()`, which can match one topic
+  filter (a subscription) against another topic filter (an ACL), with `%c` and
+  `%u` patterns for client id / username substitution.
 - Performance: reduce memory allocations when sending packets.
 
 Clients:
@@ -62,6 +68,35 @@ Clients:
   received. Requires ANSI escape code support in the terminal.
 - mosquitto_sub now only needs `-t` or `-U` to run - this means that `-t` is
   not required in all situations.
+- mosquitto_sub and mosquitto_rr now open stdout in binary mode on Windows
+  so binary payloads are not modified when printing.
+
+
+2.0.11 - 2021-06-08
+===================
+
+Security:
+- If a MQTT v5 client connects with a crafted CONNECT packet a memory leak
+  will occur. This has been fixed.
+
+Broker:
+- Fix possible crash having just upgraded from 1.6 if `per_listener_settings
+  true` is set, and a SIGHUP is sent to the broker before a client has
+  reconnected to the broker. Closes #2167.
+- Fix bridge not reconnectng if the first reconnection attempt fails.
+  Closes #2207.
+- Improve QoS 0 outgoing packet queueing.
+- Fix non-reachable bridge blocking the broker on Windows. Closes #2172.
+- Fix possible corruption of pollfd array on Windows when bridges were 
+  reconnecting. Closes #2173.
+- Fix QoS 0 messages not being queued when `queue_qos0_messages` was enabled.
+  Closes #2224.
+
+Clients:
+- If sending mosquitto_sub output to a pipe, mosquitto_sub will now detect
+  that the pipe has closed and disconnect. Closes #2164.
+- Fix `mosquitto_pub -l` quitting if a message publication is attempted when
+  the broker is temporarily unavailable. Closes #2187.
 
 
 2.0.10 - 2021-04-03

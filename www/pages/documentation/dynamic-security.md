@@ -192,11 +192,12 @@ to deny would prevent matching devices from subscribing to any topic at all.
 
 #### ACL pattern substitution
 
-The `publishClientSend` and `publishClientReceive` ACL types can make use of
-pattern substitution. This means that the strings `%c` and `%u` will be
-replaced with the client id and username of the client being checked,
-respectively. The pattern strings must be the only item in that level of
-hierarchy, so the ACL `topic/%count` will not be considered as a pattern.
+The `publishClientSend`, `publishClientReceive`, `subscribePattern`, and
+`unsubscribePattern` ACL types can make use of pattern substitution. This means
+that the strings `%c` and `%u` will be replaced with the client id and username
+of the client being checked, respectively. The pattern strings must be the only
+item in that level of hierarchy, so the ACL `topic/%count` will not be
+considered as a pattern.
 
 For example, with an ACL of `room/%c/temperature`, a client connecting with
 client id `kitchen` would be allowed to use the topic

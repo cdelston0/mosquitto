@@ -343,6 +343,7 @@ int main(int argc, char *argv[])
 		err_printf(&cfg, "Error in PUBLISH properties: Duplicate response topic.\n");
 		goto cleanup;
 	}
+	output_init(&cfg);
 
 	if(client_id_generate(&cfg)){
 		goto cleanup;

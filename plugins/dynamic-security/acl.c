@@ -103,8 +103,12 @@ static int acl_check_subscribe(struct mosquitto_evt_acl_check *ed, struct dynsec
 	struct dynsec__acl *acl, *acl_tmp = NULL;
 	size_t len;
 	bool result;
+	const char *clientid, *username;
 
 	len = strlen(ed->topic);
+
+	clientid = mosquitto_client_id(ed->client);
+	username = mosquitto_client_username(ed->client);
 
 	HASH_ITER(hh, base_rolelist, rolelist, rolelist_tmp){
 		HASH_FIND(hh, rolelist->role->acls.subscribe_literal, ed->topic, len, acl);
@@ -116,7 +120,7 @@ static int acl_check_subscribe(struct mosquitto_evt_acl_check *ed, struct dynsec
 			}
 		}
 		HASH_ITER(hh, rolelist->role->acls.subscribe_pattern, acl, acl_tmp){
-			mosquitto_sub_matches_acl(acl->topic, ed->topic, &result);
+			mosquitto_sub_matches_acl_with_pattern(acl->topic, ed->topic, clientid, username, &result);
 			if(result){
 				if(acl->allow){
 					return MOSQ_ERR_SUCCESS;
@@ -142,8 +146,12 @@ static int acl_check_unsubscribe(struct mosquitto_evt_acl_check *ed, struct dyns
 	struct dynsec__acl *acl, *acl_tmp = NULL;
 	size_t len;
 	bool result;
+	const char *clientid, *username;
 
 	len = strlen(ed->topic);
+
+	clientid = mosquitto_client_id(ed->client);
+	username = mosquitto_client_username(ed->client);
 
 	HASH_ITER(hh, base_rolelist, rolelist, rolelist_tmp){
 		HASH_FIND(hh, rolelist->role->acls.unsubscribe_literal, ed->topic, len, acl);
@@ -155,7 +163,7 @@ static int acl_check_unsubscribe(struct mosquitto_evt_acl_check *ed, struct dyns
 			}
 		}
 		HASH_ITER(hh, rolelist->role->acls.unsubscribe_pattern, acl, acl_tmp){
-			mosquitto_sub_matches_acl(acl->topic, ed->topic, &result);
+			mosquitto_sub_matches_acl_with_pattern(acl->topic, ed->topic, clientid, username, &result);
 			if(result){
 				if(acl->allow){
 					return MOSQ_ERR_SUCCESS;

@@ -120,6 +120,12 @@ int handle__subscribe(struct mosquitto *context)
 				mosquitto__free(payload);
 				return MOSQ_ERR_MALFORMED_PACKET;
 			}
+			if(subscription_options & MQTT_SUB_OPT_NO_LOCAL && !strncmp(sub, "$share/", strlen("$share/"))){
+				mosquitto__free(sub);
+				mosquitto__free(payload);
+				return MOSQ_ERR_PROTOCOL;
+			}
+
 			if(context->protocol == mosq_p_mqtt31 || context->protocol == mosq_p_mqtt311){
 				qos = subscription_options;
 				if(context->is_bridge){

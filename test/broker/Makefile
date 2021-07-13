@@ -42,6 +42,7 @@ test : test-compile 01 02 03 04 05 06 07 08 09 10 11 12 13 14
 
 
 02 :
+	./02-shared-nolocal.py
 	./02-shared-qos0-v5.py
 	./02-subhier-crash.py
 	./02-subpub-b2c-topic-alias.py
@@ -138,6 +139,7 @@ test : test-compile 01 02 03 04 05 06 07 08 09 10 11 12 13 14
 	./06-bridge-config-reload.py
 
 07 :
+	./07-will-delay-invalid-573191.py
 	./07-will-delay-reconnect.py
 	./07-will-delay-recover.py
 	./07-will-delay-session-expiry.py

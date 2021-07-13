@@ -21,6 +21,8 @@ Contributors:
 #ifdef WIN32
    /* For rand_s on Windows */
 #  define _CRT_RAND_S
+#  include <fcntl.h>
+#  include <io.h>
 #endif
 
 #include <assert.h>
@@ -868,4 +870,8 @@ void output_init(struct mosq_config *lcfg)
 		printf("\e[2J\e[1;1H");
 		printf("Broker: %s\n", lcfg->host);
 	}
+#ifdef WIN32
+	/* Disable text translation so binary payloads aren't modified */
+	_setmode(_fileno(stdout), _O_BINARY);
+#endif
 }

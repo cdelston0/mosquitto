@@ -41,7 +41,12 @@ def start_broker(filename, cmd=None, port=0, use_conf=False, expect_fail=False, 
 
     if os.environ.get('MOSQ_USE_VALGRIND') is not None:
         logfile = filename+'.'+str(vg_index)+'.vglog'
-        cmd = ['valgrind', '-q', '--trace-children=yes', '--leak-check=full', '--show-leak-kinds=all', '--log-file='+logfile] + cmd
+        if os.environ.get('MOSQ_USE_VALGRIND') == 'callgrind':
+            cmd = ['valgrind', '-q', '--tool=callgrind', '--log-file='+logfile] + cmd
+        elif os.environ.get('MOSQ_USE_VALGRIND') == 'massif':
+            cmd = ['valgrind', '-q', '--tool=massif', '--log-file='+logfile] + cmd
+        else:
+            cmd = ['valgrind', '-q', '--trace-children=yes', '--leak-check=full', '--show-leak-kinds=all', '--log-file='+logfile] + cmd
         vg_logfiles.append(logfile)
         vg_index += 1
         delay = 1

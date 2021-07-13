@@ -66,7 +66,7 @@ extern "C" {
 
 #define LIBMOSQUITTO_MAJOR 2
 #define LIBMOSQUITTO_MINOR 0
-#define LIBMOSQUITTO_REVISION 10
+#define LIBMOSQUITTO_REVISION 11
 /* LIBMOSQUITTO_VERSION_NUMBER looks like 1002001 for e.g. version 1.2.1. */
 #define LIBMOSQUITTO_VERSION_NUMBER (LIBMOSQUITTO_MAJOR*1000000+LIBMOSQUITTO_MINOR*1000+LIBMOSQUITTO_REVISION)
 
@@ -2463,7 +2463,7 @@ libmosq_EXPORT int mosquitto_topic_matches_sub2(const char *sub, size_t sublen, 
  * Check whether a topic matches a subscription, with client id/username
  * pattern substitution.
  *
- * Any instances of a topic hierarchy that are exactly %c or %u will be
+ * Any instances of a subscriptions hierarchy that are exactly %c or %u will be
  * replaced with the client id or username respectively.
  *
  * For example:
@@ -2515,7 +2515,46 @@ libmosq_EXPORT int mosquitto_topic_matches_sub_with_pattern(const char *sub, con
  *	MOSQ_ERR_SUCCESS - on success
  * 	MOSQ_ERR_INVAL -   if the input parameters were invalid.
  */
-libmosq_EXPORT int mosquitto_sub_matches_acl(const char *sub, const char *topic, bool *result);
+libmosq_EXPORT int mosquitto_sub_matches_acl(const char *acl, const char *sub, bool *result);
+
+
+/*
+ * Function: mosquitto_sub_matches_acl_with_pattern
+ *
+ * Check whether a subscription (a topic filter with wildcards) matches an ACL
+ * (a topic filter with wildcards) , with client id/username pattern
+ * substitution.
+ *
+ * Any instances of an ACL hierarchy that are exactly %c or %u will be
+ * replaced with the client id or username respectively.
+ *
+ * For example:
+ *
+ * mosquitto_sub_matches_acl_with_pattern("sensors/%c/+", "sensors/kitchen/temperature", "kitchen", NULL, &result)
+ * -> this will match
+ *
+ * mosquitto_sub_matches_acl_with_pattern("sensors/%c/+", "sensors/bathroom/temperature", "kitchen", NULL, &result)
+ * -> this will not match
+ *
+ * mosquitto_sub_matches_acl_with_pattern("sensors/%count/+", "sensors/kitchen/temperature", "kitchen", NULL, &result)
+ * -> this will not match - the `%count` is not treated as a pattern
+ *
+ * mosquitto_sub_matches_acl_with_pattern("%c/%c/%u/+", "kitchen/kitchen/bathroom/bathroom", "kitchen", "bathroom", &result)
+ * -> this will match
+ *
+ * Parameters:
+ *	acl - ACL topic filter string to check sub against.
+ *	sub - subscription to check.
+ *	clientid - client id to substitute in patterns. If NULL, then any %c patterns will not match.
+ *	username - username to substitute in patterns. If NULL, then any %u patterns will not match.
+ *	result - bool pointer to hold result. Will be set to true if the subscription
+ *	         matches the ACL.
+ *
+ * Returns:
+ *	MOSQ_ERR_SUCCESS - on success
+ *	MOSQ_ERR_INVAL -   if the input parameters were invalid.
+ */
+libmosq_EXPORT int mosquitto_sub_matches_acl_with_pattern(const char *acl, const char *sub, const char *clientid, const char *username, bool *result);
 
 
 /*

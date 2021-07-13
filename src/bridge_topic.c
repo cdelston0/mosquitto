@@ -170,7 +170,8 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 	bridge->topic_count++;
 	cur_topic = mosquitto__malloc(sizeof(struct mosquitto__bridge_topic));
 	if(cur_topic == NULL){
-		goto oom;
+		log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+		return MOSQ_ERR_NOMEM;
 	}
 	cur_topic->next = NULL;
 
@@ -184,7 +185,7 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 	}else{
 		cur_topic->topic = mosquitto__strdup(topic);
 		if(cur_topic->topic == NULL){
-			goto oom_topic;
+			goto error;
 		}
 	}
 
@@ -192,12 +193,12 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 		bridge->topic_remapping = true;
 		if(local_prefix){
 			if(bridge__create_prefix(&cur_topic->local_prefix, cur_topic->topic, local_prefix, "local")){
-				goto oom_lprefix;
+				goto error;
 			}
 		}
 		if(remote_prefix){
 			if(bridge__create_prefix(&cur_topic->remote_prefix, cur_topic->topic, remote_prefix, "local")){
-				goto oom_rprefix;
+				goto error;
 			}
 		}
 	}
@@ -205,26 +206,26 @@ int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum 
 	if(bridge__create_remap_topic(cur_topic->local_prefix,
 			cur_topic->topic, &cur_topic->local_topic)){
 
-		return MOSQ_ERR_INVAL;
+		goto error;
 	}
 
 	if(bridge__create_remap_topic(cur_topic->remote_prefix,
 			cur_topic->topic, &cur_topic->remote_topic)){
 
-		return MOSQ_ERR_INVAL;
+		goto error;
 	}
 
 	LL_APPEND(bridge->topics, cur_topic);
 
 	return MOSQ_ERR_SUCCESS;
 
-oom_rprefix:
+error:
 	mosquitto__free(cur_topic->local_prefix);
-oom_lprefix:
+	mosquitto__free(cur_topic->remote_prefix);
+	mosquitto__free(cur_topic->local_topic);
+	mosquitto__free(cur_topic->remote_topic);
 	mosquitto__free(cur_topic->topic);
-oom_topic:
 	mosquitto__free(cur_topic);
-oom:
 	log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
 	return MOSQ_ERR_NOMEM;
 }

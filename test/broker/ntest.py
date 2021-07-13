@@ -22,6 +22,7 @@ tests = [
     '01-connect-uname-no-flag',
     '01-connect-uname-pwd-no-flag',
 
+    '02-shared-nolocal',
     '02-shared-qos0-v5',
     '02-subhier-crash',
     '02-subpub-b2c-topic-alias',

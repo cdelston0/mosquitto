@@ -32,6 +32,7 @@
 	mosquitto_set_username;
 	mosquitto_strdup;
 	mosquitto_sub_matches_acl;
+	mosquitto_sub_matches_acl_with_pattern;
 	mosquitto_sub_topic_check;
 	mosquitto_topic_matches_sub;
 	mosquitto_topic_matches_sub_with_pattern;

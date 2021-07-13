@@ -142,7 +142,7 @@ static void config__init_reload(struct mosquitto__config *config)
 	}
 
 	config->local_only = true;
-	config->allow_duplicate_messages = false;
+	config->allow_duplicate_messages = true;
 
 	mosquitto__free(config->security_options.acl_file);
 	config->security_options.acl_file = NULL;

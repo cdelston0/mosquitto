@@ -354,9 +354,11 @@ static int topic_matches_sub(const char *sub, const char *topic, const char *cli
 	return MOSQ_ERR_SUCCESS;
 }
 
-static int sub_matches_acl(const char *acl, const char *sub, bool *result)
+static int sub_matches_acl(const char *acl, const char *sub, const char *clientid, const char *username, bool match_patterns, bool *result)
 {
 	size_t apos;
+	const char *pattern_check;
+	const char *lastchar = NULL;
 
 	*result = false;
 
@@ -373,6 +375,51 @@ static int sub_matches_acl(const char *acl, const char *sub, bool *result)
 	apos = 0;
 
 	while(acl[0] != 0){
+		if(match_patterns &&
+				(lastchar == NULL || lastchar[0] == '/') &&
+				acl[0] == '%' &&
+				(acl[1] == 'c' || acl[1] == 'u') &&
+				(acl[2] == '/' || acl[2] == '\0')
+				){
+
+			if(acl[1] == 'c'){
+				pattern_check = clientid;
+			}else{
+				pattern_check = username;
+			}
+			if(pattern_check == NULL || pattern_check[0] == '\0'){
+				/* no match */
+				return MOSQ_ERR_SUCCESS;
+			}
+			if(pattern_check[1] == '\0' && (
+					pattern_check[0] == '+' ||
+					pattern_check[0] == '#' ||
+					pattern_check[0] == '/')
+					){
+
+				/* username/client id of just + / # not allowed */
+				return MOSQ_ERR_SUCCESS;
+			}
+
+			apos +=2;
+			acl += 2;
+
+			while(pattern_check[0] != 0 && sub[0] != 0 && sub[0] != '/'){
+				if(pattern_check[0] != sub[0]){
+					/* Valid input, but no match */
+					return MOSQ_ERR_SUCCESS;
+				}
+				pattern_check++;
+				sub++;
+			}
+			if(sub[0] == '\0' && (acl[0] == '\0' ||
+					(acl[0] == '/' && acl[1] == '#' && acl[2] == '\0'))
+					){
+
+				*result = true;
+				return MOSQ_ERR_SUCCESS;
+			}
+		}
 		if(acl[0] != sub[0] || sub[0] == 0){ /* Check for wildcard matches */
 			if(acl[0] == '+'){
 				if(sub[0] == '#'){
@@ -460,6 +507,7 @@ static int sub_matches_acl(const char *acl, const char *sub, bool *result)
 				return MOSQ_ERR_SUCCESS;
 			}
 		}
+		lastchar = acl-1;
 	}
 	if((sub[0] != 0 || acl[0] != 0)){
 		return MOSQ_ERR_SUCCESS;
@@ -477,7 +525,12 @@ static int sub_matches_acl(const char *acl, const char *sub, bool *result)
 
 int mosquitto_sub_matches_acl(const char *acl, const char *sub, bool *result)
 {
-	return sub_matches_acl(acl, sub, result);
+	return sub_matches_acl(acl, sub, NULL, NULL, false, result);
+}
+
+int mosquitto_sub_matches_acl_with_pattern(const char *acl, const char *sub, const char *clientid, const char *username, bool *result)
+{
+	return sub_matches_acl(acl, sub, clientid, username, true, result);
 }
 
 int mosquitto_topic_matches_sub(const char *sub, const char *topic, bool *result)

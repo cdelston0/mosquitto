@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-set (VERSION 2.0.10)
+set (VERSION 2.0.11)
 project(mosquitto
 	VERSION ${VERSION}
 	DESCRIPTION "Eclipse Mosquitto"

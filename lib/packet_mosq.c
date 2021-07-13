@@ -301,15 +301,17 @@ int packet__write(struct mosquitto *mosq)
 
 #ifdef WITH_BROKER
 		mosq->next_msg_out = db.now_s + mosq->keepalive;
-		if(packet == NULL){
-			mux__remove_out(mosq);
-		}
 #else
 		pthread_mutex_lock(&mosq->msgtime_mutex);
 		mosq->next_msg_out = mosquitto_time() + mosq->keepalive;
 		pthread_mutex_unlock(&mosq->msgtime_mutex);
 #endif
 	}
+#ifdef WITH_BROKER
+	if (mosq->out_packet == NULL) {
+		mux__remove_out(mosq);
+	}
+#endif
 	return MOSQ_ERR_SUCCESS;
 }
 
