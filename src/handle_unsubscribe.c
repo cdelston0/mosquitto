@@ -108,6 +108,8 @@ int handle__unsubscribe(struct mosquitto *context)
 			return MOSQ_ERR_MALFORMED_PACKET;
 		}
 
+		bridge__del_subscription(context, sub);
+
 		/* ACL check */
 		allowed = true;
 		rc = mosquitto_acl_check(context, sub, 0, NULL, 0, false, MOSQ_ACL_UNSUBSCRIBE);
@@ -152,6 +154,7 @@ int handle__unsubscribe(struct mosquitto *context)
 #ifdef WITH_PERSISTENCE
 	db.persistence_changes++;
 #endif
+
 
 	log__printf(NULL, MOSQ_LOG_DEBUG, "Sending UNSUBACK to %s", context->id);
 

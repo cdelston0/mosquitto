@@ -209,6 +209,9 @@ int handle__subscribe(struct mosquitto *context)
 				}
 
 				log__printf(NULL, MOSQ_LOG_SUBSCRIBE, "%s %d %s", context->id, qos, sub);
+
+				rc2 = bridge__add_subscription(context, sub, qos);
+				/* FIXME: do something with return... */
 			}
 			mosquitto__free(sub);
 

@@ -122,6 +122,8 @@ void context__cleanup(struct mosquitto *context, bool force_free)
 	}
 
 #ifdef WITH_BRIDGE
+	bridge__topic_cleanup(context);
+
 	if(context->bridge){
 		bridge__cleanup(context);
 	}

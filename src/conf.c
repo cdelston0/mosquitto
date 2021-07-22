@@ -359,6 +359,7 @@ void config__bridge_cleanup(struct mosquitto__bridge *bridge)
 		mosquitto__free(bridge->topics);
 	}
 	mosquitto__free(bridge->notification_topic);
+	mosquitto__free(bridge->transitive_sub_filter);
 #ifdef WITH_TLS
 	mosquitto__free(bridge->tls_version);
 	mosquitto__free(bridge->tls_cafile);
@@ -980,6 +981,17 @@ static int config__read_file_core(struct mosquitto__config *config, bool reload,
 					log__printf(NULL, MOSQ_LOG_ERR, "Error: bind_interface specified but socket option not available.");
 					return MOSQ_ERR_INVAL;
 #endif
+				}else if(!strcmp(token, "bridge_transitive_subscriptions_filter")){
+#ifdef WITH_BRIDGE
+					if(!cur_bridge){
+						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+						return MOSQ_ERR_INVAL;
+					}
+					if(conf__parse_string(&token, "bridge_transitive_subscriptions_filter", &cur_bridge->transitive_sub_filter, &saveptr)) return MOSQ_ERR_INVAL;
+#else
+					log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Bridge support not available.");
+#endif
+
 				}else if(!strcmp(token, "bridge_attempt_unsubscribe")){
 #ifdef WITH_BRIDGE
 					if(!cur_bridge){
@@ -2149,6 +2161,7 @@ static int config__read_file_core(struct mosquitto__config *config, bool reload,
 				}else if(!strcmp(token, "topic")){
 #ifdef WITH_BRIDGE
 					char *topic = NULL;
+					struct mosquitto__bridge_topic *bridge_topic;
 					enum mosquitto__bridge_direction direction = bd_out;
 					uint8_t qos = 0;
 					char *local_prefix = NULL, *remote_prefix = NULL;
@@ -2211,9 +2224,10 @@ static int config__read_file_core(struct mosquitto__config *config, bool reload,
 						}
 					}
 
-					if(bridge__add_topic(cur_bridge, topic, direction, qos, local_prefix, remote_prefix)){
+					if(bridge__add_topic(cur_bridge, topic, direction, qos, local_prefix, remote_prefix, &bridge_topic)){
 						return MOSQ_ERR_INVAL;
 					}
+					bridge_topic->is_static = true;
 #else
 					log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Bridge support not available.");
 #endif

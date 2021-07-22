@@ -668,6 +668,32 @@ int bridge__register_local_connections(void)
 }
 
 
+int bridge__add_subscription(struct mosquitto *context, char *topic, uint8_t qos)
+{
+	int i;
+
+	for(i=0;i<db.bridge_count;i++){
+		bridge__add_transitive_subscription(db.bridges[i], context, topic, bd_both, qos);
+		/* FIXME: return?? */
+	}
+
+	return MOSQ_ERR_SUCCESS;
+}
+
+
+int bridge__del_subscription(struct mosquitto *context, char *topic)
+{
+	int i;
+
+	for(i=0;i<db.bridge_count;i++){
+		bridge__del_transitive_subscription(db.bridges[i], context, topic);
+		/* FIXME: return?? */
+	}
+
+	return MOSQ_ERR_SUCCESS;
+}
+
+
 void bridge__reload(void)
 {
 	int i;

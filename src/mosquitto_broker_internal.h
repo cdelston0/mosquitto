@@ -499,14 +499,21 @@ enum mosquitto_bridge_reload_type{
 	brt_immediate = 1,
 };
 
+struct mosquitto__bridge_topic_referrer{
+	struct mosquitto__bridge_topic_referrer *next;
+	struct mosquitto *context;
+};
+
 struct mosquitto__bridge_topic{
 	struct mosquitto__bridge_topic *next;
+	struct mosquitto__bridge_topic_referrer *ref_contexts;
 	char *topic;
 	char *local_prefix;
 	char *remote_prefix;
 	char *local_topic; /* topic prefixed with local_prefix */
 	char *remote_topic; /* topic prefixed with remote_prefix */
 	enum mosquitto__bridge_direction direction;
+	bool is_static;
 	uint8_t qos;
 };
 
@@ -544,6 +551,7 @@ struct mosquitto__bridge{
 	char *local_password;
 	char *notification_topic;
 	char *bind_address;
+	char *transitive_sub_filter;
 	bool notifications;
 	bool notifications_local_only;
 	enum mosquitto_bridge_start_type start_type;
@@ -742,6 +750,8 @@ void bridge__start_all(void);
 void bridge__reload(void);
 void bridge__db_cleanup(void);
 void bridge__cleanup(struct mosquitto *context);
+int bridge__add_subscription(struct mosquitto *context, char *topic, uint8_t qos);
+int bridge__del_subscription(struct mosquitto *context, char *topic);
 int bridge__connect(struct mosquitto *context);
 #if defined(__GLIBC__) && defined(WITH_ADNS)
 int bridge__connect_step3(struct mosquitto *context);
@@ -749,7 +759,10 @@ int bridge__connect_step3(struct mosquitto *context);
 int bridge__on_connect(struct mosquitto *context);
 void bridge_check(void);
 int bridge__register_local_connections(void);
-int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix);
+int bridge__topic_cleanup(struct mosquitto *context);
+int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix, struct mosquitto__bridge_topic **out);
+int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic, enum mosquitto__bridge_direction direction, uint8_t qos);
+int bridge__del_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic);
 int bridge__remap_topic_in(struct mosquitto *context, char **topic);
 #endif
 
