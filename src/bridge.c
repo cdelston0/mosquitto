@@ -673,7 +673,7 @@ int bridge__add_subscription(struct mosquitto *context, char *topic, uint8_t qos
 	int i;
 
 	for(i=0;i<db.bridge_count;i++){
-		bridge__add_transitive_subscription(db.bridges[i], context, topic, bd_both, qos);
+		bridge__add_transient_subscription(db.bridges[i], context, topic, bd_both, qos);
 		/* FIXME: return?? */
 	}
 
@@ -686,7 +686,7 @@ int bridge__del_subscription(struct mosquitto *context, char *topic)
 	int i;
 
 	for(i=0;i<db.bridge_count;i++){
-		bridge__del_transitive_subscription(db.bridges[i], context, topic);
+		bridge__del_transient_subscription(db.bridges[i], context, topic);
 		/* FIXME: return?? */
 	}
 

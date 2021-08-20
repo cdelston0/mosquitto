@@ -359,7 +359,7 @@ void config__bridge_cleanup(struct mosquitto__bridge *bridge)
 		mosquitto__free(bridge->topics);
 	}
 	mosquitto__free(bridge->notification_topic);
-	mosquitto__free(bridge->transitive_sub_filter);
+	mosquitto__free(bridge->transient_sub_filter);
 #ifdef WITH_TLS
 	mosquitto__free(bridge->tls_version);
 	mosquitto__free(bridge->tls_cafile);
@@ -981,13 +981,13 @@ static int config__read_file_core(struct mosquitto__config *config, bool reload,
 					log__printf(NULL, MOSQ_LOG_ERR, "Error: bind_interface specified but socket option not available.");
 					return MOSQ_ERR_INVAL;
 #endif
-				}else if(!strcmp(token, "bridge_transitive_subscriptions_filter")){
+				}else if(!strcmp(token, "bridge_transient_subscriptions_filter")){
 #ifdef WITH_BRIDGE
 					if(!cur_bridge){
 						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
 						return MOSQ_ERR_INVAL;
 					}
-					if(conf__parse_string(&token, "bridge_transitive_subscriptions_filter", &cur_bridge->transitive_sub_filter, &saveptr)) return MOSQ_ERR_INVAL;
+					if(conf__parse_string(&token, "bridge_transient_subscriptions_filter", &cur_bridge->transient_sub_filter, &saveptr)) return MOSQ_ERR_INVAL;
 #else
 					log__printf(NULL, MOSQ_LOG_WARNING, "Warning: Bridge support not available.");
 #endif

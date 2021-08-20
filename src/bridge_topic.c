@@ -153,7 +153,7 @@ static int bridge__free_topic(struct mosquitto__bridge_topic *topic)
 }
 
 
-int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic, enum mosquitto__bridge_direction direction, uint8_t qos)
+int bridge__add_transient_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic, enum mosquitto__bridge_direction direction, uint8_t qos)
 {
 	struct mosquitto__bridge_topic *cur_topic;
 	struct mosquitto__bridge_topic_referrer *ref = NULL;
@@ -165,19 +165,19 @@ int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosqu
 	assert(bcontext->is_bridge);
 	bridge = bcontext->bridge;
 
-	log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transitive_subscription: %s %s %d", bridge->name, topic, qos);
+	log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transient_subscription: %s %s %d", bridge->name, topic, qos);
 
-	/* Does it match bridge allowed transitive sub filter? */
-	mosquitto_sub_matches_acl(bridge->transitive_sub_filter, topic, &match);
+	/* Does it match bridge allowed transient sub filter? */
+	mosquitto_sub_matches_acl(bridge->transient_sub_filter, topic, &match);
 	if(!match){
-		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transitive_subscription: topic does not match bridge filter");
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transient_subscription: topic does not match bridge filter");
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	/* Look for directly matching topic on bridge */
 	match = false;
 	LL_FOREACH(bridge->topics, cur_topic){
-		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transitive_subscription: checking for direct match of %s against %s", topic, cur_topic->topic);
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transient_subscription: checking for direct match of %s against %s", topic, cur_topic->topic);
 		if(!strcmp(cur_topic->topic, topic)){
 			match = true;
 			break;
@@ -186,7 +186,7 @@ int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosqu
 
 	/* If no existing match, add a new topic to the bridge */
 	if(!match){
-		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transitive_subscription: adding topic %s to bridge %s", topic, bridge->name);
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transient_subscription: adding topic %s to bridge %s", topic, bridge->name);
 		rc = bridge__add_topic(bridge, topic, direction, qos, NULL, NULL, &cur_topic);
 		if(rc != MOSQ_ERR_SUCCESS){
 			log__printf(NULL, MOSQ_LOG_ERR, "Failed adding new subscription to %s on bridge %s", topic, bridge->name);
@@ -198,15 +198,15 @@ int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosqu
 		return MOSQ_ERR_SUCCESS;
 
 	/* Add the client context to the list of referrers using this topic */
-	LL_SEARCH_SCALAR(cur_topic->ref_contexts, ref, context, ccontext);
+	HASH_FIND_STR(cur_topic->ref_contexts, ccontext->id, ref);
 	if(ref == NULL) {
 		ref = mosquitto__malloc(sizeof(struct mosquitto__bridge_topic_referrer));
 		if(!ref){
 			log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
 			return MOSQ_ERR_NOMEM;
 		}
-		ref->context = ccontext;
-		LL_APPEND(cur_topic->ref_contexts, ref);
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__add_transient_subscription: client %s is now a referrer", ccontext->id);
+		HASH_ADD_KEYPTR(hh, cur_topic->ref_contexts, ccontext->id, strlen(ccontext->id), ref);
 	}
 
 	if(match){
@@ -238,27 +238,27 @@ int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosqu
 }
 
 
-int bridge__del_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic)
+int bridge__del_transient_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic)
 {
 	struct mosquitto__bridge_topic *cur_topic;
-	struct mosquitto__bridge_topic_referrer *ref, *ref_tmp;
+	struct mosquitto__bridge_topic_referrer *ref;
 	struct mosquitto__bridge *bridge;
 	bool match = false;
 
 	assert(bcontext->is_bridge);
 	bridge = bcontext->bridge;
 
-	/* Does it match bridge allowed transitive sub filter? */
-	mosquitto_sub_matches_acl(bridge->transitive_sub_filter, topic, &match);
+	/* Does it match bridge allowed transient sub filter? */
+	mosquitto_sub_matches_acl(bridge->transient_sub_filter, topic, &match);
 	if(!match){
-		log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transitive_subscription: topic does not match bridge filter");
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transient_subscription: topic does not match bridge filter");
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	/* Look for directly matching topic on bridge */
 	match = false;
 	LL_FOREACH(bridge->topics, cur_topic){
-		log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transitive_subscription: checking for direct match of %s against %s", topic, cur_topic->topic);
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transient_subscription: checking for direct match of %s against %s", topic, cur_topic->topic);
 		if(!strcmp(cur_topic->topic, topic)){
 			match = true;
 			break;
@@ -272,19 +272,17 @@ int bridge__del_transitive_subscription(struct mosquitto *bcontext, struct mosqu
 		return MOSQ_ERR_SUCCESS;
 
 	/* Delete the topic reference */
-	LL_FOREACH_SAFE(cur_topic->ref_contexts, ref, ref_tmp){
-		if(ref->context == ccontext){
-			log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transitive_subscription: deleting refrence of context %p to topic %s", ccontext, topic);
-			LL_DELETE(cur_topic->ref_contexts, ref);
-			mosquitto__free(ref);
-		}
+	HASH_FIND_STR(cur_topic->ref_contexts, ccontext->id, ref);
+	if(ref != NULL){
+		log__printf(NULL, MOSQ_LOG_INFO, "bridge__del_transient_subscription: deleting reference of client %s to topic %s", ccontext->id, topic);
+		HASH_DEL(cur_topic->ref_contexts, ref);
+		mosquitto__free(ref);
 	}
 
 	/* List is empty, unsubscribe and delete topic */
 	if(cur_topic->ref_contexts == NULL){
 		log__printf(NULL, MOSQ_LOG_INFO, "Bridge %s topic %s no referrers remain, unsubscribing", bridge->name, cur_topic->topic);
 		send__unsubscribe(bcontext, NULL, 1, &cur_topic->remote_topic, NULL);
-
 		LL_DELETE(bridge->topics, cur_topic);
 		bridge__free_topic(cur_topic);
 	}
@@ -303,8 +301,8 @@ static int bridge__topic_cleanup_bridge(struct mosquitto__bridge *bridge)
 		if(topic->is_static)
 			continue;
 
-		LL_FOREACH_SAFE(topic->ref_contexts, ref, ref_tmp){
-			LL_DELETE(topic->ref_contexts, ref);
+		HASH_ITER(hh, topic->ref_contexts, ref, ref_tmp){
+			HASH_DEL(topic->ref_contexts, ref);
 			mosquitto__free(ref);
 		}
 	}
@@ -327,18 +325,18 @@ static int bridge__topic_cleanup_context_refs(struct mosquitto *context)
 		bridge = bcontext->bridge;
 
 		LL_FOREACH_SAFE(bridge->topics, topic, topic_tmp){
-			if(topic->is_static)
+			if(topic->is_static || topic->ref_contexts == NULL || context->id == NULL)
 				continue;
 
-			LL_SEARCH_SCALAR(topic->ref_contexts, ref, context, context);
+			ref = NULL;
+			HASH_FIND_STR(topic->ref_contexts, context->id, ref);
 			if(ref != NULL){
-				LL_DELETE(topic->ref_contexts, ref);
+				HASH_DEL(topic->ref_contexts, ref);
 				mosquitto__free(ref);
 			}
 
 			if(topic->ref_contexts == NULL){
 				send__unsubscribe(bcontext, NULL, 1, &topic->remote_topic, NULL);
-
 				LL_DELETE(bridge->topics, topic);
 				bridge__free_topic(topic);
 			}

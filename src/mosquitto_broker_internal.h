@@ -500,8 +500,7 @@ enum mosquitto_bridge_reload_type{
 };
 
 struct mosquitto__bridge_topic_referrer{
-	struct mosquitto__bridge_topic_referrer *next;
-	struct mosquitto *context;
+	UT_hash_handle hh;
 };
 
 struct mosquitto__bridge_topic{
@@ -551,7 +550,7 @@ struct mosquitto__bridge{
 	char *local_password;
 	char *notification_topic;
 	char *bind_address;
-	char *transitive_sub_filter;
+	char *transient_sub_filter;
 	bool notifications;
 	bool notifications_local_only;
 	enum mosquitto_bridge_start_type start_type;
@@ -761,8 +760,8 @@ void bridge_check(void);
 int bridge__register_local_connections(void);
 int bridge__topic_cleanup(struct mosquitto *context);
 int bridge__add_topic(struct mosquitto__bridge *bridge, const char *topic, enum mosquitto__bridge_direction direction, uint8_t qos, const char *local_prefix, const char *remote_prefix, struct mosquitto__bridge_topic **out);
-int bridge__add_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic, enum mosquitto__bridge_direction direction, uint8_t qos);
-int bridge__del_transitive_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic);
+int bridge__add_transient_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic, enum mosquitto__bridge_direction direction, uint8_t qos);
+int bridge__del_transient_subscription(struct mosquitto *bcontext, struct mosquitto *ccontext, char *topic);
 int bridge__remap_topic_in(struct mosquitto *context, char **topic);
 #endif
 
