@@ -11,10 +11,14 @@
 #include "property_mosq.h"
 #include "packet_mosq.h"
 
+struct mosquitto_db db;
+struct mosquitto__config config;
+
 static void map_valid_helper(const char *topic, const char *local_prefix, const char *remote_prefix, const char *incoming, const char *expected)
 {
 	struct mosquitto mosq;
 	struct mosquitto__bridge bridge;
+	struct mosquitto__bridge_topic *t_out;
 	char *map_topic;
 	int rc;
 
@@ -23,7 +27,7 @@ static void map_valid_helper(const char *topic, const char *local_prefix, const 
 
 	mosq.bridge = &bridge;
 
-	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix);
+	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix, &t_out);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	map_topic = strdup(incoming);
@@ -40,6 +44,7 @@ static void map_invalid_helper(const char *topic, const char *local_prefix, cons
 {
 	struct mosquitto mosq;
 	struct mosquitto__bridge bridge;
+	struct mosquitto__bridge_topic *t_out;
 	int rc;
 
 	memset(&mosq, 0, sizeof(struct mosquitto));
@@ -47,7 +52,7 @@ static void map_invalid_helper(const char *topic, const char *local_prefix, cons
 
 	mosq.bridge = &bridge;
 
-	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix);
+	rc = bridge__add_topic(&bridge, topic, bd_in, 0, local_prefix, remote_prefix, &t_out);
 	CU_ASSERT_NOT_EQUAL(rc, 0);
 }
 
@@ -93,6 +98,10 @@ int init_bridge_tests(void)
 		printf("Error adding Bridge remap CUnit tests.\n");
 		return 1;
 	}
+
+	memset(&db, 0, sizeof(struct mosquitto_db));
+	memset(&config, 0, sizeof(struct mosquitto__config));
+	db.config = &config;
 
 	return 0;
 }
