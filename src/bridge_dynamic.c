@@ -151,6 +151,8 @@ int bridge__dynamic_parse_payload_new_json(struct mosquitto_db *db, void* payloa
 	const cJSON *qos_json= NULL;
 	const cJSON *local_prefix_json = NULL;
 	const cJSON *remote_prefix_json = NULL;
+	const cJSON *remote_username = NULL;
+	const cJSON *try_private = NULL;
 
 	connection_json = cJSON_GetObjectItemCaseSensitive(bridge_json, "connection");
 	if(cJSON_IsString(connection_json) && (connection_json->valuestring != NULL)) {
@@ -189,6 +191,7 @@ int bridge__dynamic_parse_payload_new_json(struct mosquitto_db *db, void* payloa
 		cur_bridge->try_private = true;
 		cur_bridge->attempt_unsubscribe = true;
 		cur_bridge->protocol_version = mosq_p_mqtt311;
+		log__printf(NULL, MOSQ_LOG_INFO, "Bridge, setting protocol version %d", cur_bridge->protocol_version);
 		cur_bridge->primary_retry_sock = INVALID_SOCKET;
 	}
 
@@ -325,6 +328,25 @@ int bridge__dynamic_parse_payload_new_json(struct mosquitto_db *db, void* payloa
 			}
 		}
 	}
+	remote_username = cJSON_GetObjectItemCaseSensitive(bridge_json, "remote_username");
+	if(cJSON_IsString(remote_username) && (remote_username->valuestring != NULL)) {
+		if(!strcmp(remote_username->valuestring, "\"\"")){
+			cur_bridge->remote_username = NULL;
+		}else{
+			cur_bridge->remote_username = mosquitto__strdup(remote_username->valuestring);
+			if(!cur_bridge->remote_username){
+				log__printf(NULL, MOSQ_LOG_ERR, "Error: Out of memory.");
+				cJSON_Delete(message_json);
+				return MOSQ_ERR_NOMEM;
+			}
+			log__printf(NULL, MOSQ_LOG_INFO, "remote_username: %s", cur_bridge->remote_username);
+		}
+	}
+	try_private = cJSON_GetObjectItemCaseSensitive(bridge_json, "try_private");
+	if(cJSON_IsBool(try_private)){
+		cur_bridge->try_private = cJSON_IsTrue(try_private) ? true : false;
+		log__printf(NULL, MOSQ_LOG_INFO, "try_private: %s", cur_bridge->try_private ? "true" : "false");
+	}
 
   //Last verification
 	if(cur_bridge->address_count == 0){
@@ -399,6 +421,8 @@ int bridge__dynamic_parse_payload_new_json(struct mosquitto_db *db, void* payloa
 			return MOSQ_ERR_NOMEM;
 		}
 	}
+
+  log__printf(NULL, MOSQ_LOG_INFO, "Bridge, protocol version now %d", cur_bridge->protocol_version);
   cJSON_Delete(message_json);
   return MOSQ_ERR_SUCCESS;
 }
@@ -510,6 +534,68 @@ int bridge__dynamic_parse_payload_new(struct mosquitto_db *db, void* payload, st
 					}else{
 						log__printf(NULL, MOSQ_LOG_ERR, "Error: Empty connection value in configuration.");
 						return MOSQ_ERR_INVAL;
+					}
+				}
+				else if(!strcmp(token, "try_private"))
+				{
+					nb_param ++;
+					if(!cur_bridge){
+						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+						return MOSQ_ERR_INVAL;
+					}
+					token = strtok_r(NULL, " ", &saveptr);
+					if (token)
+					{
+						if (!strcmp(token,"false"))
+						{
+							cur_bridge->try_private = false;
+						}
+						else if (strcmp(token,"true"))
+						{
+							log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+							return MOSQ_ERR_INVAL;
+						}
+					}
+				}
+				else if(!strcmp(token, "notification_topic"))
+				{
+					nb_param ++;
+					if(!cur_bridge){
+						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+						return MOSQ_ERR_INVAL;
+					}
+					token = strtok_r(NULL, " ", &saveptr);
+					if (token)
+					{
+						cur_bridge->notification_topic = mosquitto__strdup(token);
+					}
+				}
+				else if(!strcmp(token, "remote_username"))
+				{
+					log__printf(NULL, MOSQ_LOG_INFO, "Found remote_username");
+					nb_param ++;
+					if(!cur_bridge){
+						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+						return MOSQ_ERR_INVAL;
+					}
+					token = strtok_r(NULL, " ", &saveptr);
+					if (token)
+					{
+						cur_bridge->remote_username = mosquitto__strdup(token);
+						log__printf(NULL, MOSQ_LOG_INFO, "remote_username is %s", cur_bridge->remote_username);
+					}
+				}
+				else if(!strcmp(token, "remote_clientid"))
+				{
+					nb_param ++;
+					if(!cur_bridge){
+						log__printf(NULL, MOSQ_LOG_ERR, "Error: Invalid bridge configuration.");
+						return MOSQ_ERR_INVAL;
+					}
+					token = strtok_r(NULL, " ", &saveptr);
+					if (token)
+					{
+						cur_bridge->remote_clientid = mosquitto__strdup(token);
 					}
 				}
 				else if(!strcmp(token, "topic"))
@@ -796,5 +882,6 @@ static int config__check(struct mosquitto__config *config)
 		}
 	}
 #endif
+
 	return MOSQ_ERR_SUCCESS;
 }

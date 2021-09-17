@@ -469,6 +469,8 @@ int bridge__connect(struct mosquitto *context)
 			context->bridge->bind_address,
 			false);
 
+	sleep(1);
+
 	if(rc > 0){
 		if(rc == MOSQ_ERR_TLS){
 			net__socket_close(context);

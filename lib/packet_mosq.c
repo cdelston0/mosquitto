@@ -255,6 +255,7 @@ int packet__write(struct mosquitto *mosq)
 #endif
 						){
 					pthread_mutex_unlock(&mosq->current_out_packet_mutex);
+					log__printf(NULL, MOSQ_LOG_ERR, "Error: Returning success despite failure... (errno %d)", errno);
 					return MOSQ_ERR_SUCCESS;
 				}else{
 					pthread_mutex_unlock(&mosq->current_out_packet_mutex);
